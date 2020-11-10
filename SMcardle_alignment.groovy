@@ -72,8 +72,8 @@ import static qupath.lib.gui.scripting.QPEx.*;
 
 
 //set these things
-String alignmentType="AREA"  //"AREA" will use annotations. Any other string will use intensities.
-otherFile='N19-1107 30Gy M5_PANEL2.vsi' //Name of template image
+//String alignmentType="AREA"  //"AREA" will use annotations. Any other string will use intensities.
+//otherFile='N19-1107 30Gy M5_PANEL2.vsi' //Name of template image
 
 //////////////////////////////////
 String registrationType="AFFINE"
@@ -91,8 +91,8 @@ def entry2 = project2.getImageList().find { it.getImageName() == name2 }
 def imageData2 = entry2.readImageData()
 
 
-def imageDataSelected=project.getImageList().find{it.getImageName()==otherFile}.readImageData()
-double otherPixelSize=imageDataSelected.getServer().getPixelCalibration().getAveragedPixelSizeMicrons()
+//def imageDataSelected=project.getImageList().find{it.getImageName()==otherFile}.readImageData()
+//double otherPixelSize=imageDataSelected.getServer().getPixelCalibration().getAveragedPixelSizeMicrons()
 
 //Lim code file name matching
 // Get list of all images in project
@@ -167,7 +167,7 @@ for (slide in slideIDList) {
             //print 'imagedatabase: ' + imageDataBase
 
             //autoAlignPrep(20.0,"notAREA",serverBase,serverOverlay,affine,"AFFINE")
-            autoAlignPrep(20.0,"notAREA",serverBaseMark,serverOverlayMark,affine,"AFFINE")
+            autoAlignPrep(20.0,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
 
             //autoAlign(serverBase,serverOverlay,registrationType,affine,20)
             //autoAlign(serverBase,serverOverlay,registrationType,affine,10)
