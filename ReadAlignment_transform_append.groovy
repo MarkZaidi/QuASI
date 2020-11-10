@@ -84,7 +84,7 @@ import qupath.lib.images.servers.TransformedServerBuilder
 def deleteExisting = true
 
 // SET ME! Change this if things end up in the wrong place
-def createInverse = false
+def createInverse = true
 
 // Specify reference stain
 String refStain = "PANEL1"
@@ -106,8 +106,10 @@ path = buildFilePath(PROJECT_BASE_DIR, 'Affine')
 
 // Get list of all images in project
 def projectImageList = getProject().getImageList()
+
 def list_of_moving_image_names=[]
 def list_of_transforms=[]
+def list_of_reference_image_names=[]
 // Read and obtain filenames from Affine folder
 new File(path).eachFile{ f->
     f.withObjectInputStream {
@@ -128,6 +130,7 @@ new File(path).eachFile{ f->
         def targetHierarchy = targetImageData.getHierarchy()
 
         refFileName = slideID + "_" + refStain + "." + imageExt
+        list_of_reference_image_names << refFileName
 
         def refImage = projectImageList.find {it.getImageName() == refFileName}
         def refImageData = refImage.readImageData()
@@ -135,7 +138,7 @@ new File(path).eachFile{ f->
 
         def pathObjects = refHierarchy.getAnnotationObjects()
 
-        print 'Aligning objects from reference slide ' + refFileName + ' onto target slide ' + targetFileName
+        //print 'Aligning objects from reference slide ' + refFileName + ' onto target slide ' + targetFileName
 
         // Define the transformation matrix
         def transform = new AffineTransform(
@@ -152,20 +155,37 @@ new File(path).eachFile{ f->
         for (pathObject in pathObjects) {
             newObjects << transformObject(pathObject, transform)
         }
-        targetHierarchy.addPathObjects(newObjects)
-        targetImage.saveImageData(targetImageData)
+        //targetHierarchy.addPathObjects(newObjects)
+        //targetImage.saveImageData(targetImageData)
     }
 }
 print 'Done!'
 //print ([refFileName,refFileName])
-print refFileName
+list_of_reference_image_names=list_of_reference_image_names.unique()
+//print list_of_reference_image_names
 //print list_of_moving_image_names
-//print list_of_transforms
-print list_of_moving_image_names[1]
+
+//print list_of_moving_image_names
 //print new AffineTransform()
+//create linkedhashmap from list of image names and corresponding transforms
+all_moving_file_map=[list_of_moving_image_names,list_of_transforms].transpose().collectEntries{[it[0],it[1]]}
 
-
-
+print 'all_moving_file_map: ' + all_moving_file_map
+//get currentImageName. NOTE, ONLY RUN SCRIPT ON REFERENCE IMAGES.
+def currentImageName = getProjectEntry().getImageName()
+print("Current image name: " + currentImageName);
+if (!currentImageName.contains(refStain))
+    print 'WARNING: non-reference image name detected. Only run script on reference images'
+currentRefSlideName=currentImageName.split('_')
+currentRefSlideName=currentRefSlideName[0]
+print currentRefSlideName
+def filteredMap= all_moving_file_map.findAll {it.key.contains(currentRefSlideName)}
+print 'filteredmap: ' + filteredMap
+def reference_transform_map = [
+        (currentImageName) : new AffineTransform()
+]
+transforms=reference_transform_map + filteredMap
+print 'transforms: ' + transforms
 
 ////Read in existing transforms
 //def name2 = getProjectEntry().getImageName()
@@ -184,13 +204,11 @@ print list_of_moving_image_names[1]
 //def loaded_tform= GeometryTools.convertTransform(new AffineTransformation(matrix2 as double[])).createInverse()
 //print('loadedtform' + loaded_tform)
 // Define a map from the image name to the transform that should be applied to that image
-def transforms = [
-        (refFileName)    : new AffineTransform(), // Identity transform (use this if no transform is needed)
-        (list_of_moving_image_names[0]): list_of_transforms[0].createInverse(),
-        (list_of_moving_image_names[1]): list_of_transforms[1].createInverse()
-]
-print transforms
-
+//def transforms = [
+//        (refFileName)    : new AffineTransform(), // Identity transform (use this if no transform is needed)
+//        (list_of_moving_image_names[0]): list_of_transforms[0],
+//        (list_of_moving_image_names[1]): list_of_transforms[1]
+//]
 //reg001_final.ome(1).tiff
 //Exp_20200513_Region1_Spleen_H&E.tif
 // Define an output path where the merged file should be written
