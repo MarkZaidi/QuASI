@@ -76,7 +76,7 @@ import static qupath.lib.gui.scripting.QPEx.*;
 //otherFile='N19-1107 30Gy M5_PANEL2.vsi' //Name of template image
 
 //////////////////////////////////
-String registrationType="AFFINE"
+String registrationType="RIGID"
 String refStain = "PANEL1"
 String wsiExt = ".vsi"
 /////////////////////////////////
@@ -167,7 +167,11 @@ for (slide in slideIDList) {
             //print 'imagedatabase: ' + imageDataBase
 
             //autoAlignPrep(20.0,"notAREA",serverBase,serverOverlay,affine,"AFFINE")
-            autoAlignPrep(50.0,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+            if(serverBaseMark.hierarchy.nObjects()>0||serverOverlayMark.hierarchy.nObjects()>0)
+                autoAlignPrep(5.0,"AREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+            else
+                autoAlignPrep(20.0,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+
 
             //autoAlign(serverBase,serverOverlay,registrationType,affine,20)
             //autoAlign(serverBase,serverOverlay,registrationType,affine,10)
