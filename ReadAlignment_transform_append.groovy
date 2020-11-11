@@ -214,11 +214,11 @@ print 'transforms: ' + transforms
 // Define an output path where the merged file should be written
 // Recommended to use extension .ome.tif (required for a pyramidal image)
 // If null, the image will be opened in a viewer
-String pathOutput = null
-//String pathOutput = buildFilePath(PROJECT_BASE_DIR, 'mergedtest.ome.tif')
+//String pathOutput = null
+String pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
 
 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
-double outputDownsample = 10
+double outputDownsample = 1
 
 
 // Loop through the transforms to create a server that merges these

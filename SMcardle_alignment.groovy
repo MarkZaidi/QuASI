@@ -85,10 +85,10 @@ String wsiExt = ".vsi"
 baseImageName = getProjectEntry().getImageName()
 def imageDataBase=getCurrentImageData()
 // Read another image within a project as an ImageData (from which you can get the server)
-def name2 = 'N19-1107 30Gy M5_PANEL1.vsi'
-def project2 = getProject()
-def entry2 = project2.getImageList().find { it.getImageName() == name2 }
-def imageData2 = entry2.readImageData()
+//def name2 = 'N19-1107 30Gy M5_PANEL1.vsi'
+//def project2 = getProject()
+//def entry2 = project2.getImageList().find { it.getImageName() == name2 }
+//def imageData2 = entry2.readImageData()
 
 
 //def imageDataSelected=project.getImageList().find{it.getImageName()==otherFile}.readImageData()
@@ -167,7 +167,7 @@ for (slide in slideIDList) {
             //print 'imagedatabase: ' + imageDataBase
 
             //autoAlignPrep(20.0,"notAREA",serverBase,serverOverlay,affine,"AFFINE")
-            autoAlignPrep(20.0,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+            autoAlignPrep(50.0,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
 
             //autoAlign(serverBase,serverOverlay,registrationType,affine,20)
             //autoAlign(serverBase,serverOverlay,registrationType,affine,10)
