@@ -1,15 +1,33 @@
 /***
- * Script to align 2 images in the project with different pixel sizes, using either intensities or annotations.
- * Run from base image and include the name of the template image in otherFile.
+ * See https://github.com/MarkZaidi/QuPath-Image-Alignment/blob/main/Calculate-Transforms.groovy for most up-to-date version.
+ * Please link to github repo when referencing code in forums, as the code will be continually updated.
+ *
+ * Script to align 2 or more images in the project with different pixel sizes, using either intensities or annotations.
+ * Run from any image in a project containing all sets of images that require alignment
  * Writes the affine transform to an object inside the Affine subfolder of your project folder.
  * Also grabs the detection objects from the template image. Can change this to annotation objects.
+ * Usage:
+ * - Load in all sets of images to be aligned. Rename file names such that the only underscore (_) in the image name
+ * separates the SlideID from stain. Example: N19-1107 30Gy M5_PANEL2.vsi
+ * - Adjust the inputs specified under "Needed inputs", and run script (can run on any image, iterates over entire project)
+ *  - If script errors due to alignment failing to converge, set 'align_specific' to the SlideID of the image it failed on
+ *  - Set 'skip_image' to 1, rerun script to skip over the error-causing image
+ *  - Set 'skip_image' to 0, and either adjust 'AutoAlignPixelSize' or draw tissue annotations on all stains of images in list
+ *  - run script, verify all moving images contain a transform file located in the 'Affine' folder
  *
- * Needed inputs: name of template image, what values to use for alignment (intensity or annotation), what type of registration (RIGID or AFFINE), what pixel sizes to use for iterative registration refinement. 
+ * Needed inputs:
+ * - registrationType : Set as "AFFINE" for translations, rotations, scaling, and sheering. Set as "RIGID" for only translations and rotations.
+ * - refStain : Set to stain name of image to align all subsequent images to
+ * - wsiExt : file name extension
+ * - align_specific : see above, set to null for first run through
+ * - AutoAlignPixelSize : downsample factor when calculating the transform. Greater values result in faster calculation, but may impact quality
+ * - skip_image see above, value doesn't matter if align_specific is null
  *
- * Written by Sara McArdle of the La Jolla Institute, 2020, with lots of help from Mike Nelson.
+ *
+ * Script largely adapted from Sara McArdle's callable implementation of QuPath's Interactive Image Alignment, and Yae Mun Lim's method
+ * of matching reference (static) and overlay (moving) images based on file names.
  *
  */
-import static qupath.lib.gui.scripting.QPEx.*
 
 import qupath.lib.objects.PathCellObject
 import qupath.lib.objects.PathDetectionObject
@@ -19,31 +37,9 @@ import qupath.lib.objects.PathTileObject
 import qupath.lib.objects.classes.PathClassFactory
 import qupath.lib.roi.RoiTools
 import qupath.lib.roi.interfaces.ROI
-import qupath.lib.gui.dialogs.Dialogs
-import qupath.lib.images.servers.ImageServer
-import qupath.lib.images.servers.PixelCalibration
-import qupath.lib.regions.RegionRequest
-import qupath.opencv.tools.OpenCVTools
 
-import java.awt.Graphics2D
-import java.awt.Transparency
-import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
-import java.awt.image.ComponentColorModel
-import java.awt.image.DataBuffer
-import java.awt.image.BufferedImage
 import javafx.scene.transform.Affine
-
-import org.bytedeco.javacpp.indexer.FloatIndexer
-import org.bytedeco.opencv.opencv_core.Mat
-import org.bytedeco.opencv.opencv_core.TermCriteria
-import org.bytedeco.opencv.global.opencv_core
-import org.bytedeco.opencv.global.opencv_video
-import org.bytedeco.javacpp.indexer.Indexer
-
-//imports from lim script
-import javafx.scene.transform.Affine
-import qupath.lib.gui.scripting.QPEx
 import qupath.lib.images.servers.ImageServer
 
 import java.awt.Graphics2D
@@ -70,35 +66,19 @@ import java.awt.image.DataBuffer
 import static qupath.lib.gui.scripting.QPEx.*;
 
 
-
-//set these things
-//String alignmentType="AREA"  //"AREA" will use annotations. Any other string will use intensities.
-//otherFile='N19-1107 30Gy M5_PANEL2.vsi' //Name of template image
-
 //////////////////////////////////
-String registrationType="RIGID"
-String refStain = "PANEL3"
-String wsiExt = ".vsi"
-String align_specific='N19-1107-20Gy-M4' //If auto-align on intensity fails, put the image(s) that it fails on here
-//align_specific=null
-skip_image=0 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
+String registrationType="RIGID" //Specify as "RIGID" or "AFFINE"
+String refStain = "PANEL3" //stain to use as reference image (all images will be aligned to this)
+String wsiExt = ".vsi" //image name extension
+def align_specific=['N19-1107 30Gy M5']//If auto-align on intensity fails, put the image(s) that it fails on here
+def AutoAlignPixelSize = 20 //downsample factor for calculating transform (tform). Does not affect scaling of output image
+align_specific=null
+skip_image=1 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
 
 /////////////////////////////////
 
-//collect basic information
-baseImageName = getProjectEntry().getImageName()
-def imageDataBase=getCurrentImageData()
-// Read another image within a project as an ImageData (from which you can get the server)
-//def name2 = 'N19-1107 30Gy M5_PANEL1.vsi'
-//def project2 = getProject()
-//def entry2 = project2.getImageList().find { it.getImageName() == name2 }
-//def imageData2 = entry2.readImageData()
 
-
-//def imageDataSelected=project.getImageList().find{it.getImageName()==otherFile}.readImageData()
-//double otherPixelSize=imageDataSelected.getServer().getPixelCalibration().getAveragedPixelSizeMicrons()
-
-//Lim code file name matching
+//Lim's code for file name matching
 // Get list of all images in project
 def projectImageList = getProject().getImageList()
 
@@ -108,12 +88,10 @@ def slideIDList = []
 def stainList = []
 def missingList = []
 
-
 // Split image file names to desired variables and add to previously created lists
 for (entry in projectImageList) {
     def name = entry.getImageName()
     def (imageName, imageExt) = name.split('\\.')
-    //print imageName
     def (slideID, stain) = imageName.split('_')
     imageNameList << imageName
     slideIDList << slideID
@@ -123,13 +101,14 @@ for (entry in projectImageList) {
 // Remove duplicate entries from lists
 slideIDList = slideIDList.unique()
 stainList = stainList.unique()
-//print slideIDList
+
 // Remove specific entries if causing alignment to not converge
 if (align_specific != null)
     if (skip_image == 1)
-        slideIDList.remove(align_specific)
+        slideIDList.removeAll(align_specific)
     else
         slideIDList.retainAll(align_specific)
+print slideIDList
 
 if (stainList.size() == 1) {
     print 'Only one stain detected. Target slides may not be loaded.'
@@ -160,10 +139,11 @@ for (slide in slideIDList) {
                 continue
             }
             println("Aligning reference " + refFileName + " to target " + targetFileName)
+            //McArdle's code for image alignment
             ImageServer<BufferedImage> serverBase = refImage.readImageData().getServer()
             ImageServer<BufferedImage> serverOverlay = targetImage.readImageData().getServer()
-            def static_img_name = refFileName//'N19-1107 30Gy M5_PANEL1.vsi'
-            def moving_img_name = targetFileName//'N19-1107 30Gy M5_PANEL2.vsi'
+            def static_img_name = refFileName
+            def moving_img_name = targetFileName
             def project_name = getProject()
             def entry_name_static = project_name.getImageList().find { it.getImageName() == static_img_name }
             def entry_name_moving = project_name.getImageList().find { it.getImageName() == moving_img_name }
@@ -172,22 +152,13 @@ for (slide in slideIDList) {
             def serverOverlayMark = entry_name_moving.readImageData()
             Affine affine=[]
 
-            //print 'serverBaseMark: ' + serverBaseMark
-            //print 'serverBase: '+ serverBase
-            //print 'serverOverlay: ' + serverOverlay
-            //print 'serverOverlayMark: ' + serverOverlayMark
-            //print 'imagedatabase: ' + imageDataBase
-
-            //autoAlignPrep(20.0,"notAREA",serverBase,serverOverlay,affine,"AFFINE")
+            //Perform the alignment. If no annotations present, use intensity. If annotations present, use area
             if(serverBaseMark.hierarchy.nObjects()>0||serverOverlayMark.hierarchy.nObjects()>0)
-                autoAlignPrep(5.0,"AREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+                autoAlignPrep(AutoAlignPixelSize,"AREA",serverBaseMark,serverOverlayMark,affine,registrationType)
             else
-                autoAlignPrep(20.0,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+                autoAlignPrep(AutoAlignPixelSize,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
 
 
-            //autoAlign(serverBase,serverOverlay,registrationType,affine,20)
-            //autoAlign(serverBase,serverOverlay,registrationType,affine,10)
-            //autoAlign(serverBase,serverOverlay,registrationType,affine,5)
 
             def matrix = []
             matrix << affine.getMxx()
@@ -210,38 +181,6 @@ if (missingList.isEmpty() == true) {
     missingList = missingList.unique()
     print 'Done! Missing slides: ' + missingList
 }
-//perform affine transforms. Start with a large pixel size and iteratively refine the transform. NOTE: the final pixel size in the last autoAlignPrep SHOULD NOT be smaller than the pixel size of your least resolved image
-//Affine affine= []
-//autoAlignPrep(20.0,"notAREA",imageDataBase,imageDataSelected,affine,"AFFINE")
-//autoAlignPrep(5.0,"notAREA",imageDataBase,imageDataSelected,affine,"AFFINE")
-//def scaleFactor=autoAlignPrep(otherPixelSize,alignmentType,imageDataBase,imageDataSelected,affine,"AFFINE") //may want to change to RIGID, depending on your application.
-//print scaleFactor
-
-//deal with the differing downsample amounts
-//affine.prependScale(1/scaleFactor,1/scaleFactor)
-//
-////save the transform as an object in the project folder
-//def matrix = []
-//matrix << affine.getMxx()
-//matrix << affine.getMxy()
-//matrix << affine.getTx()
-//matrix << affine.getMyx()
-//matrix << affine.getMyy()
-//matrix << affine.getTy()
-//
-//affinepath = buildFilePath(PROJECT_BASE_DIR, 'Affine '+baseImageName)
-//mkdirs(affinepath)
-//path = buildFilePath(PROJECT_BASE_DIR, 'Affine '+baseImageName,  otherFile+".aff")
-//print("Matrix:"+matrix)
-//new File(path).withObjectOutputStream {
-//    it.writeObject(matrix)
-//}
-//
-//
-////gather all annotation objects in the otherFile
-//new File(affinepath).eachFile{ f->
-//    GatherObjects(false, true, f)
-//}
 
 
 /*Subfunctions taken from here:
