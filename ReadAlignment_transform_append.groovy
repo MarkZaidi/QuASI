@@ -87,7 +87,7 @@ def deleteExisting = true
 def createInverse = true
 
 // Specify reference stain
-String refStain = "PANEL1"
+String refStain = "PANEL3"
 
 import qupath.lib.objects.PathCellObject
 import qupath.lib.objects.PathDetectionObject
@@ -216,6 +216,7 @@ print 'transforms: ' + transforms
 // If null, the image will be opened in a viewer
 String pathOutput = null
 //String pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
+
 
 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
 double outputDownsample = 10

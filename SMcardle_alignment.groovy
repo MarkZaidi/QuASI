@@ -77,8 +77,12 @@ import static qupath.lib.gui.scripting.QPEx.*;
 
 //////////////////////////////////
 String registrationType="RIGID"
-String refStain = "PANEL1"
+String refStain = "PANEL3"
 String wsiExt = ".vsi"
+String align_specific='N19-1107-20Gy-M4' //If auto-align on intensity fails, put the image(s) that it fails on here
+//align_specific=null
+skip_image=0 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
+
 /////////////////////////////////
 
 //collect basic information
@@ -109,7 +113,7 @@ def missingList = []
 for (entry in projectImageList) {
     def name = entry.getImageName()
     def (imageName, imageExt) = name.split('\\.')
-    print imageName
+    //print imageName
     def (slideID, stain) = imageName.split('_')
     imageNameList << imageName
     slideIDList << slideID
@@ -119,6 +123,14 @@ for (entry in projectImageList) {
 // Remove duplicate entries from lists
 slideIDList = slideIDList.unique()
 stainList = stainList.unique()
+//print slideIDList
+// Remove specific entries if causing alignment to not converge
+if (align_specific != null)
+    if (skip_image == 1)
+        slideIDList.remove(align_specific)
+    else
+        slideIDList.retainAll(align_specific)
+
 if (stainList.size() == 1) {
     print 'Only one stain detected. Target slides may not be loaded.'
     return
