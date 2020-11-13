@@ -8,7 +8,7 @@
  * Also grabs the detection objects from the template image. Can change this to annotation objects.
  * Usage:
  * - Load in all sets of images to be aligned. Rename file names such that the only underscore (_) in the image name
- * separates the SlideID from stain. Example: N19-1107 30Gy M5_PANEL2.vsi
+ *   separates the SlideID from stain. Example: N19-1107 30Gy M5_PANEL2.vsi
  * - Adjust the inputs specified under "Needed inputs", and run script (can run on any image, iterates over entire project)
  *  - If script errors due to alignment failing to converge, set 'align_specific' to the SlideID of the image it failed on
  *  - Set 'skip_image' to 1, rerun script to skip over the error-causing image
@@ -65,7 +65,7 @@ import java.awt.image.DataBuffer
 
 import static qupath.lib.gui.scripting.QPEx.*;
 
-
+// Variables to set
 //////////////////////////////////
 String registrationType="RIGID" //Specify as "RIGID" or "AFFINE"
 String refStain = "PANEL3" //stain to use as reference image (all images will be aligned to this)

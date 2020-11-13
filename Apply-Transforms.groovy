@@ -1,4 +1,21 @@
 /**
+ * See https://github.com/MarkZaidi/QuPath-Image-Alignment/blob/main/Apply-Transforms.groovy for most up-to-date version.
+ * Please link to github repo when referencing code in forums, as the code will be continually updated.
+ *
+ * Script is largely adapted from Pete Bankhead's script:
+ * https://gist.github.com/petebankhead/db3a3c199546cadc49a6c73c2da14d6c#file-qupath-concatenate-channels-groovy
+ * with parts from Yae Mun Lim for file name matching
+ *
+ * Script reads in a set of Affine transformations generated from 'Calculate-Transforms.groovy' and applies them to
+ * images in the project. The result is a multichannel image containing the reference image, with all aligned images
+ * appended to it. Optionally, stain separation can be performed on brightfield images, although it is recommended that
+ * you compute and set the color vectors as outlined in https://qupath.readthedocs.io/en/latest/docs/tutorials/separating_stains.html
+ *
+ * Usage:
+ * - Run 'Calculate-Transforms.groovy' to generate the necessary transform (tform) matrices required.
+ * - Set 'refStain' to the same reference stain as used in 'Calculate-Transforms.groovy'
+ */
+/** Comments from pete's script:
  * Merge images along the channels dimension in QuPath v0.2.0.
  *
  * This shows how multiple images can be combined by channel concatenation,
@@ -40,66 +57,36 @@
  * @author Pete Bankhead
  */
 
-/**
-* Mark's comments
-* This script can be used to apply one or more affine transformations to one or more
-* images, effectively aligning them to the first image listed in the 'transforms' variable.
-*
-* Prior to executing this script, a transformation matrix must be calculated in QuPath.
-* This can be done through Analyze > Interactive Image Alignment. For automatic registration
-* to converge, both images must have the same background color (i.e. black on black or white on white).
-* If backgrounds are of different colors, manual registration can still work. Once an adequate transform is
-* obtained, you can replace the transform listed in 'os3Transform'. 
-*
-* In 'transforms', the first image is the static image (does not move), and should have an identity transform following it in the array. To generate an
-* identity transform, create a new AffineTransform(). Every subsequent image-transform pair can either contain an image followed by a transform,
-* or an image followed by an identity transform (i.e. if you want to append a label image without transforming). 'pathOutput' denotes the path
-* to write the transformed and appended image stack. I reccomend keeping the .ome.tif extension as that allows the pyramid to be retained.
-*
-* If you wish to downsample the output image, typically if you just want to debug the script, you can change 'outputDownsample'
-* to the factor you wish to downsample by.
-*
-* By default, this script will attempt to perform stain deconvolution of any brightfield RGB images present. This may not be desirable
-* if you want to append a RGB H&E for visualization purposes. I've set 'stains' to null near line 137 to prevent unwanted stain separation.
-*
-* If the transformed image seems drastically misaligned, the matrix might need to be inverted. This can be done by calling .createInverse()
-* at the end of AffineTransformation
-*/
+
 import javafx.application.Platform
-import org.locationtech.jts.geom.util.AffineTransformation
+import javafx.scene.transform.Affine
 import qupath.lib.images.ImageData
 import qupath.lib.images.servers.ImageChannel
 import qupath.lib.images.servers.ImageServer
 import qupath.lib.images.servers.ImageServers
-import qupath.lib.roi.GeometryTools
 
-import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 import java.util.stream.Collectors
 
-import static qupath.lib.gui.scripting.QPEx.*
 import qupath.lib.images.servers.TransformedServerBuilder
-
-// SET ME! Delete existing objects
-def deleteExisting = true
-
-// SET ME! Change this if things end up in the wrong place
-def createInverse = true
-
-// Specify reference stain
-String refStain = "PANEL3"
-
-import qupath.lib.objects.PathCellObject
-import qupath.lib.objects.PathDetectionObject
-import qupath.lib.objects.PathObject
-import qupath.lib.objects.PathObjects
-import qupath.lib.objects.PathTileObject
-import qupath.lib.roi.RoiTools
-import qupath.lib.roi.interfaces.ROI
-
 import java.awt.geom.AffineTransform
 
 import static qupath.lib.gui.scripting.QPEx.*
+def currentImageName = getProjectEntry().getImageName()
+// Variables to set
+//////////////////////////////////////////////////////////////
+
+def deleteExisting = true // SET ME! Delete existing objects
+def createInverse = true // SET ME! Change this if things end up in the wrong place
+String refStain = "PANEL3" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
+// Define an output path where the merged file should be written
+// Recommended to use extension .ome.tif (required for a pyramidal image)
+// If null, the image will be opened in a viewer
+//String pathOutput = null
+pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
+double outputDownsample = 20 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
+
+//////////////////////////////////////////////////////////////
 
 // Affine folder path
 path = buildFilePath(PROJECT_BASE_DIR, 'Affine')
@@ -138,7 +125,6 @@ new File(path).eachFile{ f->
 
         def pathObjects = refHierarchy.getAnnotationObjects()
 
-        //print 'Aligning objects from reference slide ' + refFileName + ' onto target slide ' + targetFileName
 
         // Define the transformation matrix
         def transform = new AffineTransform(
@@ -151,7 +137,8 @@ new File(path).eachFile{ f->
         if (deleteExisting)
             targetHierarchy.clearAll()
         list_of_transforms << transform
-        def newObjects = []
+
+//        def newObjects = []
 //        for (pathObject in pathObjects) {
 //            newObjects << transformObject(pathObject, transform)
 //        }
@@ -159,67 +146,29 @@ new File(path).eachFile{ f->
         //targetImage.saveImageData(targetImageData)
     }
 }
-print 'Done!'
-//print ([refFileName,refFileName])
 list_of_reference_image_names=list_of_reference_image_names.unique()
-//print list_of_reference_image_names
-//print list_of_moving_image_names
 
-//print list_of_moving_image_names
-//print new AffineTransform()
 //create linkedhashmap from list of image names and corresponding transforms
-all_moving_file_map=[list_of_moving_image_names,list_of_transforms].transpose().collectEntries{[it[0],it[1]]}
+ all_moving_file_map=[list_of_moving_image_names,list_of_transforms].transpose().collectEntries{[it[0],it[1]]}
 
 print 'all_moving_file_map: ' + all_moving_file_map
 //get currentImageName. NOTE, ONLY RUN SCRIPT ON REFERENCE IMAGES.
-def currentImageName = getProjectEntry().getImageName()
 print("Current image name: " + currentImageName);
 if (!currentImageName.contains(refStain))
     print 'WARNING: non-reference image name detected. Only run script on reference images'
 currentRefSlideName=currentImageName.split('_')
 currentRefSlideName=currentRefSlideName[0]
-print currentRefSlideName
-def filteredMap= all_moving_file_map.findAll {it.key.contains(currentRefSlideName)}
-print 'filteredmap: ' + filteredMap
+print 'Processing: ' + currentRefSlideName
+//Only keep entries that pertain to transforms relevant to images sharing the same SlideID and exclude any that contain
+// refStain (there shouldn't be any with refStain generated as it's created below as an identity matrix, however running
+// calculate-transforms.groovy with different refStains set can cause them to be generated, and override the identity matrix set below)
+
+filteredMap= all_moving_file_map.findAll {it.key.contains(currentRefSlideName) && !it.key.contains(refStain)}
 def reference_transform_map = [
         (currentImageName) : new AffineTransform()
 ]
+
 transforms=reference_transform_map + filteredMap
-print 'transforms: ' + transforms
-
-////Read in existing transforms
-//def name2 = getProjectEntry().getImageName()
-//def path2 = buildFilePath(PROJECT_BASE_DIR, 'Affine',name2)
-////def path2 = buildFilePath(PROJECT_BASE_DIR,'Affine PIMO 19C 1 HE.tif','PIMO 19C PIMO 1.tif.aff')
-//def matrix2 = null
-//new File(path2).withObjectInputStream {
-//    matrix2 = it.readObject()
-//}
-
-// Define a transform, e.g. with the (also unfinished) 'Interactive image alignment' command
-// Note: you may need to remove .createInverse() depending upon how the transform is created
-//def os3Transform = GeometryTools.convertTransform(new AffineTransformation([-0.9839072823524477,	0.28041312098503124,	13986.705393673828,
-//-0.2606438398361206,	-0.9685527682304385,	25974.275657694427] as double[])).createInverse()
-//print('os3:'+ os3Transform)
-//def loaded_tform= GeometryTools.convertTransform(new AffineTransformation(matrix2 as double[])).createInverse()
-//print('loadedtform' + loaded_tform)
-// Define a map from the image name to the transform that should be applied to that image
-//def transforms = [
-//        (refFileName)    : new AffineTransform(), // Identity transform (use this if no transform is needed)
-//        (list_of_moving_image_names[0]): list_of_transforms[0],
-//        (list_of_moving_image_names[1]): list_of_transforms[1]
-//]
-//reg001_final.ome(1).tiff
-//Exp_20200513_Region1_Spleen_H&E.tif
-// Define an output path where the merged file should be written
-// Recommended to use extension .ome.tif (required for a pyramidal image)
-// If null, the image will be opened in a viewer
-String pathOutput = null
-//String pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
-
-
-// Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
-double outputDownsample = 10
 
 
 // Loop through the transforms to create a server that merges these
@@ -228,6 +177,8 @@ def servers = []
 def channels = []
 int c = 0
 for (def mapEntry : transforms.entrySet()) {
+    print 'mapentry: ' + mapEntry
+    
     // Find the next image & transform
     def name = mapEntry.getKey()
     print(name)
@@ -254,7 +205,7 @@ for (def mapEntry : transforms.entrySet()) {
             builder.transform(transform)
         // If we have stains, deconvolve them
         println(stains)
-        stains=null // Mark's way of disabling stain deconvolution if a brightfield image is present
+        //stains=null // Mark's way of disabling stain deconvolution if a brightfield image is present
         if (stains != null) {
             builder.deconvolveStains(stains)
             for (int i = 1; i <= 3; i++)
