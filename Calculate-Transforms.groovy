@@ -68,12 +68,12 @@ import static qupath.lib.gui.scripting.QPEx.*;
 // Variables to set
 //////////////////////////////////
 String registrationType="RIGID" //Specify as "RIGID" or "AFFINE"
-String refStain = "PANEL3" //stain to use as reference image (all images will be aligned to this)
-String wsiExt = ".vsi" //image name extension
-def align_specific=['N19-1107 30Gy M5']//If auto-align on intensity fails, put the image(s) that it fails on here
-def AutoAlignPixelSize = 20 //downsample factor for calculating transform (tform). Does not affect scaling of output image
+String refStain = "reference" //stain to use as reference image (all images will be aligned to this)
+String wsiExt = ".qptiff" //image name extension
+//def align_specific=['N19-1107 30Gy M5']//If auto-align on intensity fails, put the image(s) that it fails on here
+def AutoAlignPixelSize = 400 //downsample factor for calculating transform (tform). Does not affect scaling of output image
 align_specific=null
-skip_image=1 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
+skip_image=0 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
 
 /////////////////////////////////
 
@@ -108,7 +108,7 @@ if (align_specific != null)
         slideIDList.removeAll(align_specific)
     else
         slideIDList.retainAll(align_specific)
-print slideIDList
+
 
 if (stainList.size() == 1) {
     print 'Only one stain detected. Target slides may not be loaded.'

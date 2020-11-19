@@ -14,6 +14,14 @@
  * Usage:
  * - Run 'Calculate-Transforms.groovy' to generate the necessary transform (tform) matrices required.
  * - Set 'refStain' to the same reference stain as used in 'Calculate-Transforms.groovy'
+ * - Run script only on images containing 'refStain'
+ * Bugs:
+ * - If one image name is contained within another image name in the project (i.e. project containing image names 'sample_stainx.tiff' and 'sample-1_stainx.tiff',
+ *   File matching may get confused, thinking they are part of the same set. If that's not intentional, make sure images of different sets do not contain the SlideID
+ *   in others' SlideID
+ * - If one or more of the images has been rotated on import, QuPath will throw errors while writing ome.tiff (but still complete their writing). Solution is to either make sure no images are rotated
+ *   on import (rely on manual alignment) or run 'read_and_rewrite_ometiff.py' on the folder containing the written images (reading and rewriting seems to fix it?).
+ *   If neither are done, image cannot be loaded into QuPath (works fine in Python, MATLAB, etc.)
  */
 /** Comments from pete's script:
  * Merge images along the channels dimension in QuPath v0.2.0.
@@ -78,13 +86,13 @@ def currentImageName = getProjectEntry().getImageName()
 
 def deleteExisting = true // SET ME! Delete existing objects
 def createInverse = true // SET ME! Change this if things end up in the wrong place
-String refStain = "PANEL3" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
+String refStain = "reference" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
 // Define an output path where the merged file should be written
 // Recommended to use extension .ome.tif (required for a pyramidal image)
 // If null, the image will be opened in a viewer
-//String pathOutput = null
+String pathOutput = null
 pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
-double outputDownsample = 20 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
+double outputDownsample = 1 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
 
 //////////////////////////////////////////////////////////////
 
@@ -151,7 +159,6 @@ list_of_reference_image_names=list_of_reference_image_names.unique()
 //create linkedhashmap from list of image names and corresponding transforms
  all_moving_file_map=[list_of_moving_image_names,list_of_transforms].transpose().collectEntries{[it[0],it[1]]}
 
-print 'all_moving_file_map: ' + all_moving_file_map
 //get currentImageName. NOTE, ONLY RUN SCRIPT ON REFERENCE IMAGES.
 print("Current image name: " + currentImageName);
 if (!currentImageName.contains(refStain))
@@ -162,8 +169,10 @@ print 'Processing: ' + currentRefSlideName
 //Only keep entries that pertain to transforms relevant to images sharing the same SlideID and exclude any that contain
 // refStain (there shouldn't be any with refStain generated as it's created below as an identity matrix, however running
 // calculate-transforms.groovy with different refStains set can cause them to be generated, and override the identity matrix set below)
-
+//print 'all_moving_file_map: ' + all_moving_file_map
 filteredMap= all_moving_file_map.findAll {it.key.contains(currentRefSlideName) && !it.key.contains(refStain)}
+//print 'filteredMap' + filteredMap
+
 def reference_transform_map = [
         (currentImageName) : new AffineTransform()
 ]
@@ -204,7 +213,6 @@ for (def mapEntry : transforms.entrySet()) {
         if (!transform.isIdentity())
             builder.transform(transform)
         // If we have stains, deconvolve them
-        println(stains)
         //stains=null // Mark's way of disabling stain deconvolution if a brightfield image is present
         if (stains != null) {
             builder.deconvolveStains(stains)
