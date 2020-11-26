@@ -20,7 +20,8 @@ Use this script to apply the transform to WSIs, appending them together in one l
  - Run 'Calculate-Transforms.groovy' to generate the necessary transform (tform) matrices required.
  - Set 'refStain' to the same reference stain as used in 'Calculate-Transforms.groovy'
  - Adjust 'variables to set' depending on the degree of downsampling, whether to display in viewer, or write out as an ome.tiff
- - Run script only on images containing 'refStain'. 
+ - Run script only on images containing 'refStain'
+ - Give yourself a pat on the back for actually reading the documentation :)
 ## To do:
 - Bugs
   - when transforming an image set where one of the non-reference images has been rotated on import, ometiff gets somewhat corrupted during writing (tiles will fail during writing)
