@@ -22,14 +22,11 @@ Use this script to apply the transform to WSIs, appending them together in one l
  - Adjust 'variables to set' depending on the degree of downsampling, whether to display in viewer, or write out as an ome.tiff
  - Run script only on images containing 'refStain'. 
 ## To do:
-- verify script is robust
-  - Can it handle aligning a project containing 2 mice and 3 stain sets (6 images in project total)? - yes
-  - Does it successfully align and deconvolve H&E and DAB images? - yes to align, deconv is pending
-  - Is it able to align based on annotations alone? - yes
-  - Can it align largest image? (and at 1x downsample factor) - yes, but bug with writing image rotated on import
+- Features
   - select what channel(s) to align based on
 - Bugs
   - when transforming an image set where one of the non-reference images has been rotated on import, ometiff gets somewhat corrupted during writing (tiles will fail during writing)
+    - Verified as bug with QuPath by Pete: https://github.com/qupath/qupath/issues/641. Temp solution is to either make sure images are properly oriented prior to import, or perform manual alignment via `Alignment - StoreMatrix automatic.groovy`
 - Features
   - Offer ability to select what channel(s) to align based on
   - Improve string matching of 'filteredMap' in `Apply-Transforms.groovy` so that if a SlideID is contained within another SlideID of a different image that is not to be aligned to, this won't confuse the script and attempt to append the different image sets together
