@@ -86,13 +86,14 @@ def currentImageName = getProjectEntry().getImageName()
 
 def deleteExisting = true // SET ME! Delete existing objects
 def createInverse = true // SET ME! Change this if things end up in the wrong place
-String refStain = "reference" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
+def performDeconvolution = true // If brightfield image, separate channels into individual stains (remember to set them in original image)
+String refStain = "HE" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
 // Define an output path where the merged file should be written
 // Recommended to use extension .ome.tif (required for a pyramidal image)
 // If null, the image will be opened in a viewer
 String pathOutput = null
-pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
-double outputDownsample = 1 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
+//pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
+double outputDownsample = 2 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
 
 //////////////////////////////////////////////////////////////
 
@@ -162,7 +163,8 @@ list_of_reference_image_names=list_of_reference_image_names.unique()
 //get currentImageName. NOTE, ONLY RUN SCRIPT ON REFERENCE IMAGES.
 print("Current image name: " + currentImageName);
 if (!currentImageName.contains(refStain))
-    print 'WARNING: non-reference image name detected. Only run script on reference images'
+    //print 'WARNING: non-reference image name detected. Only run script on reference images'
+    throw new Exception("WARNING: non-reference image name detected: " + currentImageName + ". Only run script on reference images")
 currentRefSlideName=currentImageName.split('_')
 currentRefSlideName=currentRefSlideName[0]
 print 'Processing: ' + currentRefSlideName
@@ -213,7 +215,8 @@ for (def mapEntry : transforms.entrySet()) {
         if (!transform.isIdentity())
             builder.transform(transform)
         // If we have stains, deconvolve them
-        //stains=null // Mark's way of disabling stain deconvolution if a brightfield image is present
+        if (performDeconvolution==false)
+            stains=null // Mark's way of disabling stain deconvolution if a brightfield image is present
         if (stains != null) {
             builder.deconvolveStains(stains)
             for (int i = 1; i <= 3; i++)
@@ -221,6 +224,12 @@ for (def mapEntry : transforms.entrySet()) {
         } else {
             channels.addAll(updateChannelNames(name, currentServer.getMetadata().getChannels()))
         }
+
+        //Mark modification: in addition to writing out deconvolved channels, include original RGB channels for viewing purposes
+        //Currently unsupported due to bugs when used in conjuction with fluorescent images, will leave the 2 lines below commented out
+        //channels.addAll(updateChannelNames(name, currentServer.getMetadata().getChannels()))
+        //servers << currentServer
+
         servers << builder.build()
     }
 }
