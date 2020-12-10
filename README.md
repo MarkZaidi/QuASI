@@ -27,7 +27,7 @@ Use this script to apply the transform to WSIs, appending them together in one l
   - when transforming an image set where one of the non-reference images has been rotated on import, ometiff gets somewhat corrupted during writing (tiles will fail during writing)
     - Verified as bug with QuPath by Pete: https://github.com/qupath/qupath/issues/641. Temp solution is to either make sure images are properly oriented prior to import, or perform manual alignment via `Alignment - StoreMatrix automatic.groovy`
 - Features
-  - Offer ability to select what channel(s) to align based on
+  - Offer ability to select what channel(s) to align based on (implemented, might want to add option to specify different channels for different images)
   - Improve string matching of 'filteredMap' in `Apply-Transforms.groovy` so that if a SlideID is contained within another SlideID of a different image that is not to be aligned to, this won't confuse the script and attempt to append the different image sets together
 
 
