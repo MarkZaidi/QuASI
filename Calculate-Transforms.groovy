@@ -71,7 +71,7 @@ String registrationType="RIGID" //Specify as "RIGID" or "AFFINE"
 String refStain = "reference" //stain to use as reference image (all images will be aligned to this)
 String wsiExt = ".qptiff" //image name extension
 //def align_specific=['N19-1107 30Gy M5']//If auto-align on intensity fails, put the image(s) that it fails on here
-def AutoAlignPixelSize = 400 //downsample factor for calculating transform (tform). Does not affect scaling of output image
+def AutoAlignPixelSize = 100 //downsample factor for calculating transform (tform). Does not affect scaling of output image
 align_specific=null
 skip_image=0 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
 //Experimental features
