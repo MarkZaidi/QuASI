@@ -71,9 +71,11 @@ String registrationType="RIGID" //Specify as "RIGID" or "AFFINE"
 String refStain = "reference" //stain to use as reference image (all images will be aligned to this)
 String wsiExt = ".qptiff" //image name extension
 //def align_specific=['N19-1107 30Gy M5']//If auto-align on intensity fails, put the image(s) that it fails on here
-def AutoAlignPixelSize = 400 //downsample factor for calculating transform (tform). Does not affect scaling of output image
+def AutoAlignPixelSize = 90 //downsample factor for calculating transform (tform). Does not affect scaling of output image
 align_specific=null
 skip_image=0 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
+//Experimental features
+use_single_channel=1 // Use a single channel from each image for alignment (set to channel number to use). Set to 0 to use all channels.
 
 /////////////////////////////////
 
@@ -154,9 +156,9 @@ for (slide in slideIDList) {
 
             //Perform the alignment. If no annotations present, use intensity. If annotations present, use area
             if(serverBaseMark.hierarchy.nObjects()>0||serverOverlayMark.hierarchy.nObjects()>0)
-                autoAlignPrep(AutoAlignPixelSize,"AREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+                autoAlignPrep(AutoAlignPixelSize,"AREA",serverBaseMark,serverOverlayMark,affine,registrationType,use_single_channel)
             else
-                autoAlignPrep(AutoAlignPixelSize,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType)
+                autoAlignPrep(AutoAlignPixelSize,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType,use_single_channel)
 
 
 
@@ -188,7 +190,7 @@ https://github.com/qupath/qupath/blob/a1465014c458d510336993802efb08f440b50cc1/q
  */
 
 //creates an image server using the actual images (for intensity-based alignment) or a labeled image server (for annotation-based).
-double autoAlignPrep(double requestedPixelSizeMicrons, String alignmentMethod, ImageData<BufferedImage> imageDataBase, ImageData<BufferedImage> imageDataSelected, Affine affine,String registrationType) throws IOException {
+double autoAlignPrep(double requestedPixelSizeMicrons, String alignmentMethod, ImageData<BufferedImage> imageDataBase, ImageData<BufferedImage> imageDataSelected, Affine affine,String registrationType, int use_single_channel) throws IOException {
     ImageServer<BufferedImage> serverBase, serverSelected;
 
     if (alignmentMethod == 'AREA') {
@@ -229,11 +231,11 @@ double autoAlignPrep(double requestedPixelSizeMicrons, String alignmentMethod, I
         serverSelected = imageDataSelected.getServer();
     }
 
-    scaleFactor=autoAlign(serverBase, serverSelected, registrationType, affine, requestedPixelSizeMicrons);
+    scaleFactor=autoAlign(serverBase, serverSelected, registrationType, affine, requestedPixelSizeMicrons,use_single_channel);
     return scaleFactor
 }
 
-double autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, String regionstrationType, Affine affine, double requestedPixelSizeMicrons) {
+double autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, String regionstrationType, Affine affine, double requestedPixelSizeMicrons, use_single_channel) {
     PixelCalibration calBase = serverBase.getPixelCalibration()
     double pixelSizeBase = calBase.getAveragedPixelSizeMicrons()
     double downsampleBase = 1
@@ -265,11 +267,34 @@ double autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImag
     BufferedImage imgBase = serverBase.readBufferedImage(RegionRequest.createInstance(serverBase.getPath(), downsampleBase, 0, 0, serverBase.getWidth(), serverBase.getHeight()))
     BufferedImage imgOverlay = serverOverlay.readBufferedImage(RegionRequest.createInstance(serverOverlay.getPath(), downsampleOverlay, 0, 0, serverOverlay.getWidth(), serverOverlay.getHeight()))
 
-    imgBase = ensureGrayScale(imgBase)
-    imgOverlay = ensureGrayScale(imgOverlay)
+    //Determine whether to calculate intensity-based alignment using all channels or a single channel
+    Mat matBase
+    Mat matOverlay
+    if (use_single_channel==0) {
+        //print 'using all channels'
+        imgBase = ensureGrayScale(imgBase)
+        imgOverlay = ensureGrayScale(imgOverlay)
+        matBase = OpenCVTools.imageToMat(imgBase)
+        matOverlay = OpenCVTools.imageToMat(imgOverlay)
 
-    Mat matBase = OpenCVTools.imageToMat(imgBase)
-    Mat matOverlay = OpenCVTools.imageToMat(imgOverlay)
+    } else {
+
+        matBase = OpenCVTools.imageToMat(imgBase)
+        matOverlay = OpenCVTools.imageToMat(imgOverlay)
+        int channel = use_single_channel
+        //print ('using channel ' + channel)
+        matBase = OpenCVTools.splitChannels(matBase)[channel]
+        matOverlay = OpenCVTools.splitChannels(matOverlay)[channel]
+    }
+
+
+    /////pete code block/////
+
+//// New bit
+//    int channel = 2
+//    matBase = OpenCVTools.splitChannels(matBase)[channel]
+//    matOverlay = OpenCVTools.splitChannels(matOverlay)[channel]
+//  ///end pete code block///
 
     Mat matTransform = Mat.eye(2, 3, opencv_core.CV_32F).asMat()
 // Initialize using existing transform
