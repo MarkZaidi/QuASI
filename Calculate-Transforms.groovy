@@ -67,15 +67,18 @@ import static qupath.lib.gui.scripting.QPEx.*;
 
 // Variables to set
 //////////////////////////////////
-String registrationType="RIGID" //Specify as "RIGID" or "AFFINE"
-String refStain = "reference" //stain to use as reference image (all images will be aligned to this)
-String wsiExt = ".qptiff" //image name extension
+String registrationType="AFFINE" //Specify as "RIGID" or "AFFINE"
+String refStain = "PTEN" //stain to use as reference image (all images will be aligned to this)
+String wsiExt = ".ndpi" //image name extension
 //def align_specific=['N19-1107 30Gy M5']//If auto-align on intensity fails, put the image(s) that it fails on here
-def AutoAlignPixelSize = 400 //downsample factor for calculating transform (tform). Does not affect scaling of output image
-align_specific=null
+def AutoAlignPixelSize = 30 //downsample factor for calculating transform (tform). Does not affect scaling of output image
+align_specific=null //When referencing an image, just include the slide name (stuff before _)
 skip_image=0 // If 1, skips the images defined by 'align_specific'. If 0, skips all but image(s) in 'align_specific'
 //Experimental features
-use_single_channel=1 // Use a single channel from each image for alignment (set to channel number to use). Set to 0 to use all channels.
+use_single_channel=0 // Use a single channel from each image for alignment (set to channel number to use). Set to 0 to use all channels.
+iterations=5 // Number of times to iteratively calculate the transformation
+mov_rotation=180 // rotation to apply to ALL moving images before calculating alignment. Strongly recommend ensuring proper orientation before loading into QuPath.
+decrement_factor=1.1 // if iterations>1, by what factor to decrease AutoAlignPixelSize (increasing resolution of alignment). Set to 1 to leave AutoAlignPixelSize unchanged across iterations.
 
 /////////////////////////////////
 
@@ -103,7 +106,8 @@ for (entry in projectImageList) {
 // Remove duplicate entries from lists
 slideIDList = slideIDList.unique()
 stainList = stainList.unique()
-
+print (slideIDList)
+print (align_specific)
 // Remove specific entries if causing alignment to not converge
 if (align_specific != null)
     if (skip_image == 1)
@@ -128,6 +132,7 @@ for (slide in slideIDList) {
             refFileName = slide + "_" + refStain + wsiExt
             targetFileName = slide + "_" + stain + wsiExt
             path = buildFilePath(PROJECT_BASE_DIR, 'Affine', targetFileName)
+            
             def refImage = projectImageList.find {it.getImageName() == refFileName}
             def targetImage = projectImageList.find {it.getImageName() == targetFileName}
             if (refImage == null) {
@@ -154,15 +159,29 @@ for (slide in slideIDList) {
             def serverOverlayMark = entry_name_moving.readImageData()
             Affine affine=[]
 
-            //Perform the alignment. If no annotations present, use intensity. If annotations present, use area
-            if(serverBaseMark.hierarchy.nObjects()>0||serverOverlayMark.hierarchy.nObjects()>0)
-                autoAlignPrep(AutoAlignPixelSize,"AREA",serverBaseMark,serverOverlayMark,affine,registrationType,use_single_channel)
-            else
-                autoAlignPrep(AutoAlignPixelSize,"notAREA",serverBaseMark,serverOverlayMark,affine,registrationType,use_single_channel)
+
+            mov_width=serverOverlayMark.getServer().getWidth()
+            mov_height=serverOverlayMark.getServer().getHeight()
+            affine.prependRotation(mov_rotation,mov_width/2,mov_height/2)
 
 
+
+            for(int i = 0;i<iterations;i++) {
+                //Perform the alignment. If no annotations present, use intensity. If annotations present, use area
+                print("autoalignpixelsize:" + AutoAlignPixelSize)
+                if (serverBaseMark.hierarchy.nObjects() > 0 || serverOverlayMark.hierarchy.nObjects() > 0)
+                    autoAlignPrep(AutoAlignPixelSize, "AREA", serverBaseMark, serverOverlayMark, affine, registrationType, use_single_channel)
+                else
+                    autoAlignPrep(AutoAlignPixelSize, "notAREA", serverBaseMark, serverOverlayMark, affine, registrationType, use_single_channel)
+                AutoAlignPixelSize/=decrement_factor
+                if (AutoAlignPixelSize<1){
+                    AutoAlignPixelSize=1
+                }
+            }
 
             def matrix = []
+
+
             matrix << affine.getMxx()
             matrix << affine.getMxy()
             matrix << affine.getTx()

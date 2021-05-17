@@ -84,16 +84,16 @@ def currentImageName = getProjectEntry().getImageName()
 // Variables to set
 //////////////////////////////////////////////////////////////
 
-def deleteExisting = true // SET ME! Delete existing objects
+def deleteExisting = false // SET ME! Delete existing objects
 def createInverse = true // SET ME! Change this if things end up in the wrong place
-def performDeconvolution = true // If brightfield image, separate channels into individual stains (remember to set them in original image)
-String refStain = "HE" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
+def performDeconvolution = false // If brightfield image, separate channels into individual stains (remember to set them in original image)
+String refStain = "PTEN" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
 // Define an output path where the merged file should be written
 // Recommended to use extension .ome.tif (required for a pyramidal image)
 // If null, the image will be opened in a viewer
 String pathOutput = null
 //pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
-double outputDownsample = 2 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
+double outputDownsample = 1 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
 
 //////////////////////////////////////////////////////////////
 
@@ -267,3 +267,4 @@ List<ImageChannel> updateChannelNames(String name, Collection<ImageChannel> chan
                 }
             ).collect(Collectors.toList())
 }
+print('Done')
