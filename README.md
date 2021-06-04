@@ -1,7 +1,7 @@
 # QuPath Alignment of Serial Images (QuASI)
 List of QuPath scripts for alignment and stain deconvolution of whole-slide histology images (WSIs). Output of `Calculate-Transforms.groovy` is a list of affine transformations that can be used to transform WSIs or annotations. Output of `Apply-Transforms.groovy` is a multichannel ome.tiff containing the transformed image channels appended (and optionally deconvolved if brightfield) to the reference image.
 ![Alignments are only as good as the quality of the tissue](https://github.com/MarkZaidi/QuPath-Image-Alignment/blob/main/overlay_preview.png?raw=true)
-Video tutorial found in https://youtu.be/EvvSsXExYOI
+Video tutorial found in https://youtu.be/EvvSsXExYOI?t=1
 ## Usage
 ### Calculate-Transforms.groovy
 Use this script to generate transformation matrices for all images
