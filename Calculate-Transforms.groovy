@@ -24,7 +24,7 @@
  * - skip_image see above, value doesn't matter if align_specific is null
  *
  *
- * Script largely adapted from Sara McArdle's callable implementation of QuPath's Interactive Image Alignment, and Yae Mun Lim's method
+ * Script largely adapted from Sara McArdle's callable implementation of QuPath's Interactive Image Alignment, and Yau Mun Lim's method
  * of matching reference (static) and overlay (moving) images based on file names.
  *
  */
