@@ -5,12 +5,18 @@
 //Current image should be the destination image
 // Michael Nelson 03/2020
 import static qupath.lib.gui.scripting.QPEx.*
-import qupath.lib.gui.align.ImageServerOverlay
+import qupath.ext.align.gui.ImageServerOverlay
+/*
+Usage:
+- Open reference image in viewer
+- Open the `Interactive Image Alignment` overlay, align an image
+- While the overlay is still open, set `name` to the name of the current moving image, and run script
+ */
 
 //def name = getProjectEntry().getImageName()
 ////////////////////
 
-def name='peppers_rot15.tiff' //specify name of moving (transform) image, as listed in the project
+def name='D1_PIMO' //specify name of moving (transform) image, as listed in the project
 
 ////////////////////
 path = buildFilePath(PROJECT_BASE_DIR, 'Affine')
@@ -21,7 +27,7 @@ path = buildFilePath(PROJECT_BASE_DIR, 'Affine', name)
 
 
 def overlay = getCurrentViewer().getCustomOverlayLayers().find {it instanceof ImageServerOverlay}
-return
+
 affine = overlay.getAffine()
 
 print affine
